@@ -45,7 +45,7 @@ class net(object):
             *self.layer[k].output[i]*(1-self.layer[k].output[i])\
             for i in range(self.layer[k].n_layer)]
     def compute_cost_derivatives(self):
-        
+        pass
 
                 
 
