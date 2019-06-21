@@ -1,89 +1,84 @@
-# -*- coding: utf-8 -*-
-
-
 import numpy as np
 
-            
-class layer(object):
-    def __init__(self, n_layer, inputs):
-        self.n_layer = n_layer #number of neurons of the layer
-        self.inputs = inputs   #list of inputs from previous layer
-        self.output = []
-        self.W = [list(np.random.normal(0,2,len(inputs))) for i in range(n_layer)]
-        self.bias = list(np.random.normal(0,2,n_layer))
-    
-    def generate_out(self,X):
-        self.output = []
-        for i in range(self.n_layer):
-            Z = self.bias[i] + np.dot(self.W[i],X)
-            Z = 1 / (1 + np.exp(-Z))
-            self.output.append(Z)
-
-class net(object):
-    def __init__(self, arch):
-        self.arch = arch #lista q me dice cuantas neuronas tiene cada capa
+class net:
+    def __init__(self,nX,arch):
+        self.W = [[list(np.random.normal(0,2,nX)) for j in range(arch[0])]]
+        self.bias = [list(np.random.normal(0,2,arch[0]))]
+        #self.W = [[list(np.ones(nX)) for j in range(arch[0])]]
+        #self.bias = [list(np.ones(arch[0]))]
+        for l in range(1,len(arch)):
+            self.W.append([list(np.random.normal(0,2,arch[l-1])) for j in range(arch[l])])
+            self.bias.append(list(np.random.normal(0,2,arch[l])))
+            #self.W.append([list(np.ones(arch[l-1])) for j in range(arch[l])])
+            #self.bias.append(list(np.ones(arch[l])))
+        self.a = []
+        self.delta = [[] for i in range(len(arch))]
+        self.dc_dw = [[] for i in range(len(arch))]
+        self.dc_db = [[] for i in range(len(arch))]
+        self.nX = nX
+        self.arch = arch
+        self.Y = [0]*arch[-1]
+        
+        
+    def compute_output(self,X):
+        if len(X) != self.nX:
+            raise Exception('el tamaño de X no coincide con el tamaño del input ingresado al inicializar la red')
  
-        
-        self.layer = []
-        self.delta =  [0]*len(self.arch)
-        
-        self.dcdw = []
-        self.dcdb = []
-        self.costo = 0
-        
-    def generate_net(self,X):
-        self.layer.append(layer(self.arch[0],X))
-        self.layer[0].generate_out(X)
-        for i in range(1,len(self.arch)):
-            self.layer.append(layer(self.arch[i], self.layer[i-1].output))
-            self.layer[i].generate_out(self.layer[i-1].output)
-    
-    def compute_delta(self,Y):
-        k=len(self.delta)-1
-        self.delta[k] = [(self.layer[k].output[i]-Y[i])*self.layer[k].output[i]*(1-self.layer\
-        [k].output[i]) for i in range(len(self.layer[k].output))]
-        while k >= 0:
-        
-            k-=1    
-            self.delta[k] = [np.dot(list(np.array(self.layer[k+1].W)[:,i]),self.delta[k+1])\
-            *self.layer[k].output[i]*(1-self.layer[k].output[i])\
-            for i in range(self.layer[k].n_layer)]
-    
+        self.a =[[self.f(self.bias[0][j]+np.dot(X,self.W[0][j])) for j in range(self.arch[0])]]
+
+        for l in range(1,len(self.arch)):
+            self.a.append([self.f(self.bias[l][j]+np.dot(self.a[l-1],self.W[l][j])) for j in range(self.arch[l])])
+        self.Y = self.a[-1]
+    def compute_delta(self,X,Y):
+        l=-1
+        self.delta[l] = [(self.a[l][j]-Y[j])*self.df(self.bias[l][j]+np.dot(self.a[l-1],self.W[l][j])) for j in range(self.arch[l])]
+        l-=1
+        while np.abs(l) < len(self.arch):
+            WT=self.transpose_list(self.W[l+1])
+            self.delta[l] = [np.dot(WT[j] , self.delta[l+1])*self.df(self.bias[l][j]+np.dot(self.a[l-1],self.W[l][j])) for j in range(self.arch[l])]
+            l-=1
+        l = 0
+        WT=self.transpose_list(self.W[l+1])
+        self.delta[l] = [np.dot(WT[j] , self.delta[l+1])*self.df(self.bias[l][j]+np.dot(X,self.W[l][j])) for j in range(self.arch[l])]
+
     def compute_cost_derivatives(self,X):
-        for i in range(len(self.arch)):
-            if i==0:
-                a_k_lm1 = X
-            else:
-                a_k_lm1 = self.layer[i-1].output
-            d_j_l = self.delta[i]
-            
-            self.dcdb.append(self.delta[i])
-            self.dcdw.append([[d*a for a in a_k_lm1] for d in d_j_l])
-            
-    def recalculate_W_b(self,alpha):
-        for j in range(len(self.arch)):
-            W = self.layer[j].W
-            b = self.layer[j].bias
-            self.layer[j].W = [[x1[i]-alpha*x2[i] for i in range(len(x1))] for x1,x2 in zip(W,self.dcdw[j])]
-            self.layer[j].bias = [x1-alpha*x2 for x1,x2 in zip(b,self.dcdb[j])]
-            
-    
-    def compute_out_all_net(self,X):
-        self.layer[0].generate_out(X)
-        for i in range(1,len(self.arch)):
-            self.layer[i].generate_out(self.layer[i-1].output)
-    
-    def train_net(self,X,Y,alpha):
-        self.compute_delta(Y)
-        self.compute_cost_derivatives(X)
-        self.recalculate_W_b(alpha)
-        self.compute_out_all_net(X)
-        self.costo = sum([(Y[i]-self.layer[-1].output[i])**2 for i in range(len(Y))])
-        
-            
-        
-        
+        l = 0
+        self.dc_dw[l] = [[X[k]*self.delta[l][j] for k in range(len(X))] for j in range(self.arch[l])]
 
+        for l in range(1,len(self.arch)):
+            self.dc_dw[l] = [[self.a[l-1][k]*self.delta[l][j] for k in range(self.arch[l-1])] for j in range(self.arch[l])]
+    
+    def recalculate_w(self,alpha):
+        for l in range(len(self.W)):
+            for j in range(len(self.W[l])):
+                self.bias[l][j] = self.bias[l][j] - alpha * self.delta[l][j] 
+                for k in range(len(self.W[l][j])):
+                    self.W[l][j][k] = self.W[l][j][k] - alpha * self.dc_dw[l][j][k] 
                 
+    def train_net(self,X,Y,alpha,n_steps):
+        # This method trains the network with a learning rate alpha
+        # n_steps number of steps for each data using gradient descending method
+        for n in range(n_steps):
+            self.compute_output(X)
+            self.compute_delta(X,Y)
+            self.compute_cost_derivatives(X)
+            self.recalculate_w(alpha)
+        
+    def f(self,x):    
+        return 1/(1+np.exp(-x))
+                
+    def df(self,x):
+        return self.f(x)*(1-self.f(x))
+    
+    def transpose_list(self,a):
+        return [[a[i][j] for i in range(len(a))] for j in range(len(a[0]))]
+    
+
+X = [1,2,3,4,5]
+Y = [1, 1]
+alpha=0.1
+red = net(len(X),[3,4,2])
 
 
+
+red.train_net(X,Y,alpha,5)
