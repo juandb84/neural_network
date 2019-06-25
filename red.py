@@ -74,11 +74,4 @@ class net:
         return [[a[i][j] for i in range(len(a))] for j in range(len(a[0]))]
     
 
-X = [1,2,3,4,5]
-Y = [1, 1]
-alpha=0.1
-red = net(len(X),[3,4,2])
 
-
-
-red.train_net(X,Y,alpha,5)
