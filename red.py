@@ -18,12 +18,14 @@ class net:
         self.nX = nX
         self.arch = arch
         self.Y = [0]*arch[-1]
+       
         
         
     def compute_output(self,X):
+
         if len(X) != self.nX:
             raise Exception('el tamaño de X no coincide con el tamaño del input ingresado al inicializar la red')
- 
+     
         self.a =[[self.f(self.bias[0][j]+np.dot(X,self.W[0][j])) for j in range(self.arch[0])]]
 
         for l in range(1,len(self.arch)):
